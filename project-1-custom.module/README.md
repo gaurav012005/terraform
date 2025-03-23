@@ -1,277 +1,306 @@
-Got it! If you want to set up the infrastructure with only **Terraform** and without **Ansible**, you can follow these steps to create the infrastructure in AWS. The focus will be on provisioning resources using Terraform, such as EC2 instances, S3 buckets, and DynamoDB tables, across different environments (dev, staging, production).
+DevOps Project 1: Multi-Environment Infrastructure with Terraform.
 
-### **Terraform Setup for Multi-Environment Infrastructure**
+Introduction
+This comprehensive DevOps project demonstrates how to set up a robust, multi-environment infrastructure using Terraform  for configuration management. The project covers creating infrastructure for development, staging, and production environments, with a focus on automation, scalability, and best practices.
 
-Here is how you can set up the infrastructure using **Terraform** alone.
+Project Overview
+The project involves:
 
+1.Installing Terraform 
+
+2.Setting up AWS infrastructure
+
+3.Creating dynamic inventories
+
+
+Automating infrastructure management
 ---
 
-## **1. Installing Terraform**
+# Terraform Setup for Multi-Environment Infrastructure
+
+Here is how you can set up the infrastructure using Terraform alone.
+
+## 1. Installing Terraform
 
 If you have not already installed Terraform, follow these instructions:
 
-1. **Update the Package List:**
-    ```bash
-    sudo apt-get update
-    ```
+### Update the Package List:
+```bash
+sudo apt-get update
+```
 
-2. **Install Dependencies:**
-    ```bash
-    sudo apt-get install -y gnupg software-properties-common
-    ```
+### Install Dependencies:
+```bash
+sudo apt-get install -y gnupg software-properties-common
+```
 
-3. **Add HashiCorp's GPG Key:**
-    ```bash
-    curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-    ```
+### Add HashiCorp's GPG Key:
+```bash
+curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+```
 
-4. **Add the HashiCorp Repository:**
-    ```bash
-    echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-    ```
+### Add the HashiCorp Repository:
+```bash
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+```
 
-5. **Install Terraform:**
-    ```bash
-    sudo apt-get update && sudo apt-get install terraform
-    ```
+### Install Terraform:
+```bash
+sudo apt-get update && sudo apt-get install terraform
+```
 
-6. **Verify the Installation:**
-    ```bash
-    terraform --version
-    ```
+### Verify the Installation:
+```bash
+terraform --version
+```
 
----
+## 2. Setting Up the Project Directory
 
-## **2. Setting Up the Project Directory**
-
-To keep everything organized, you will need to set up the project structure for **Terraform**.
-
-1. **Create the main project directory**:
-    ```bash
-    mkdir terraform-infra && cd terraform-infra
-    ```
-
-2. **Create the subdirectories for environments**:
-    ```bash
-    mkdir -p terraform/dev terraform/staging terraform/prod
-    ```
+To keep everything organized, you will need to set up the project structure for Terraform.
 
 Now you have the following directory structure:
+
 ```
-terraform-infra/
-├── terraform/
-│   ├── dev/
-│   ├── staging/
-│   └── prod/
+project-1-custom.module/
+├── infra-app/
+│   ├── dynamodb.tf
+│   ├── ec2.tf
+│   ├── s3.tf
+│   ├── variable.tf
+│   ├── README.md
+│   ├── main.tf
+│   ├── provider.tf
+│   └── terraform.tf
 ```
 
----
+## 3. Define Terraform Configuration Files
 
-## **3. Define Terraform Configuration Files**
-
-For each environment (dev, staging, and prod), you will define the necessary resources like EC2, S3, and DynamoDB.
-
-### **3.1. Providers and Backend Configuration (`providers.tf`)**
-
-In the root of your `terraform` directory, create the `providers.tf` file to configure AWS provider settings and specify the region.
-
+### 3.1. Providers and Backend Configuration (provider.tf) (s3.tf)
 ```hcl
 provider "aws" {
   region = "us-west-2"  # Change to your desired region
 }
 
-terraform {
-  backend "s3" {
-    bucket = "my-terraform-state-bucket"
-    key    = "terraform.tfstate"
-    region = "us-west-2"
-  }
-}
-```
-
-This configuration sets up AWS as the provider and uses an S3 bucket to store the state files.
-
-### **3.2. EC2 Instance Configuration (`ec2.tf`)**
-
-In each environment folder (`dev`, `staging`, `prod`), create a file named `ec2.tf` to configure EC2 instances.
-
-Here’s an example of the content of `ec2.tf`:
-
-```hcl
-resource "aws_instance" "example" {
-  ami           = "ami-0c55b159cbfafe1f0"  # Use an appropriate AMI ID for your region
-  instance_type = "t2.micro"                # Change based on your requirement
-
-  tags = {
-    Name = "Example Instance"
-  }
-}
-```
-
-### **3.3. S3 Bucket Configuration (`s3.tf`)**
-
-In the same environment folders (`dev`, `staging`, `prod`), create a file `s3.tf` to create an S3 bucket.
-
-```hcl
-resource "aws_s3_bucket" "example" {
-  bucket = "my-example-bucket-123456"  # Replace with a unique bucket name
-  acl    = "private"
-}
-```
-
-### **3.4. DynamoDB Table Configuration (`dynamodb.tf`)**
-
-For DynamoDB, create `dynamodb.tf` in each environment folder to define the table.
-
-```hcl
-resource "aws_dynamodb_table" "example" {
-  name         = "example-table"
-  hash_key     = "id"
-  billing_mode = "PAY_PER_REQUEST"
+resource "aws_s3_bucket" "remote-s3" {
+  bucket = "${var.env}-${var.bucket_name}"
+  filename             = "${path.module}/files/outputfile"
   
+  tags ={
+    Name = "my-bucket"
+    Environment = var.env
+
+  }
+  
+}
+```
+
+### 3.2. EC2 Instance Configuration  and dynamodb (ec2.tf) (dynamodb.tf)
+```hcl
+resource "aws_key_pair" "my_key_new"{
+    key_name = "${var.env}-infra-app-key"
+    public_key = file {"terra-key-ec2.pub"}
+
+    tags= {
+        Environment = var.env
+    }
+ }
+
+ resource "aws_default_vpc" "default"{
+
+ }
+
+ resource "aws_security_group" "my_security_group"{
+    name = "${var.env}-infra_app-sg"
+   vpc_id = aws_default_vpc.default.vpc_id
+
+ }
+
+ingress{
+    from_port =22
+    to_port =22
+    protoco; = "tcp"
+    cidr_blocks =["0.0.0.0/0"]
+    description ="ssh open"
+}
+
+
+ingress{
+    from_port =80
+    to_port =80
+    protoco; = "tcp"
+    cidr_blocks =["0.0.0.0/0"]
+    description ="htto open"
+}
+
+
+ingress{
+    from_port =8000
+    to_port =8000
+    protoco; = "tcp"
+    cidr_blocks =["0.0.0.0/0"]
+    description ="flask app"
+}
+
+
+ gress{
+    from_port =0
+    to_port =0
+    protoco; = "-1"
+    cidr_blocks =["0.0.0.0/0"]
+    description ="all access 
+}
+
+#ec2
+resource "aws_instance" "my_instance"{
+    count = var.instance_count
+    depends_on [aws_security_group.my_security_group,aws_key_pair.my_key_new]
+    key_name = aws_key_pair.my_key_new.key_name
+    security_group =[aws_security_group.my_security_group.name]
+    instance_type = var.instance_type
+    ami = var.ami_id
+    root_block_device{
+        volume_size =var.env =="prd" ? 20 :10
+    }
+
+    tags +{
+        Name = "${var.env}-infra_app-ec2"
+        Environment =var.env
+    }
+
+     }
+
+
+### 3.3. DynamoDB Table Configuration (dynamodb.tf)
+```hcl
+resource "aws_dynamodb_table" "basic-dynamodb-table" {
+                    name           = "${var.en}-infra-app-table"
+  billing_mode   = "PAY_AS_PER_REQUEST"
+  hash_key       = "var.hash.key"
+
   attribute {
-    name = "id"
+    name = "LockId"
     type = "S"
   }
+
+  tags = {
+                Name        = "${var.env}-infra-app-table"
+    Environment = var.env
+  }
 }
 ```
 
-### **3.5. Outputs (`output.tf`)**
-
-In each environment folder, create an `output.tf` file to output useful information such as the public IP of the EC2 instance.
-
+### 3.3. main and variables (main.tf) (variables.tf)
 ```hcl
-output "instance_public_ip" {
-  value = aws_instance.example.public_ip
+module "dev-infra" {
+  source = "./infra-app"
+  env ="dev"
+  bucket_name = "infra-app-bucket"
+  instance_count = 1
+  instance_type = "t2.micro"
+  ami_id = "ami-084568db4383264d4"
+  hash_key = "studentId"
+}
+
+module "prd-infra"{
+  source = "./infra-app"
+  env ="prd"
+  bucket_name = "infra-app-bucket"
+  instance_count = 2
+  instance_type = "t2.micro"
+  ami_id = "ami-084568db4383264d4"
+  hash_key = "studentId"
+}
+
+module "stg-infra" {
+  source = "./infra-app"
+  env ="stg"
+  bucket_name = "infra-app-bucket"
+  instance_count = 1
+  instance_type = "t2.small"
+  ami_id = "ami-084568db4383264d4"
+  hash_key = "studentId"
+}
+
+#variable.tf
+variable "env" {
+ 
+  description = "this is my environment "
+  type = string
+}
+
+
+variable "bucket_name"{
+  description = "this is my bucket "
+  type = string
+}
+
+variable "instance_count"{
+  description = "this is no of instnace "
+  type = number
+}
+
+variable "instance_type"{
+  description = "this is my instnce type"
+  type = string
+}
+
+variable "ami_id"{
+  description = "this is my bucket "
+  type = string
+}
+
+variable "hash_key{
+  description = "this is thus is hachkey"
+  type = string
 }
 ```
-
-### **3.6. Variables (`variables.tf`)**
-
-Create a `variables.tf` file in the environment folders to define any variables (like instance type, AMI, etc.) you want to reuse.
-
+### 3.4. terraform (terraform.tf)
 ```hcl
-variable "instance_type" {
-  description = "Type of EC2 instance"
-  type        = string
-  default     = "t2.micro"
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "5.91.0"
+    }
+  }
 }
 
-variable "ami_id" {
-  description = "AMI ID for the instance"
-  type        = string
-  default     = "ami-0c55b159cbfafe1f0"  # Use the appropriate AMI ID
+provider "aws" {
+  # Configuration options
 }
 ```
 
-### **Directory Structure After Adding Terraform Files:**
-
-Your `terraform` directory structure should now look like this:
-
-```
-terraform-infra/
-├── terraform/
-│   ├── dev/
-│   │   ├── ec2.tf
-│   │   ├── s3.tf
-│   │   ├── dynamodb.tf
-│   │   ├── output.tf
-│   │   └── variables.tf
-│   ├── staging/
-│   │   ├── ec2.tf
-│   │   ├── s3.tf
-│   │   ├── dynamodb.tf
-│   │   ├── output.tf
-│   │   └── variables.tf
-│   └── prod/
-│       ├── ec2.tf
-│       ├── s3.tf
-│       ├── dynamodb.tf
-│       ├── output.tf
-│       └── variables.tf
-└── providers.tf
+### Initialize Terraform (this installs necessary plugins and providers):
+```bash
+terraform init
 ```
 
----
-
-## **4. Running Terraform**
-
-Now you are ready to apply the Terraform configuration to provision your infrastructure.
-
-1. **Navigate to the environment directory (e.g., `dev`)**:
-    ```bash
-    cd terraform/dev
-    ```
-
-2. **Initialize Terraform** (this installs necessary plugins and providers):
-    ```bash
-    terraform init
-    ```
-
-3. **Review the Execution Plan**:
-    ```bash
-    terraform plan
-    ```
-
-4. **Apply the Changes** to provision resources:
-    ```bash
-    terraform apply
-    ```
-
-5. **Confirm the Action** when prompted (or use `-auto-approve` to skip the prompt):
-    ```bash
-    terraform apply -auto-approve
-    ```
-
-Terraform will create the resources (EC2 instances, S3 buckets, and DynamoDB tables) for the specified environment.
-
----
-
-## **5. Final Project Structure**
-
-After completing these steps, your project structure will look like this:
-
-```
-terraform-infra/
-├── terraform/
-│   ├── dev/
-│   │   ├── ec2.tf
-│   │   ├── s3.tf
-│   │   ├── dynamodb.tf
-│   │   ├── output.tf
-│   │   └── variables.tf
-│   ├── staging/
-│   │   ├── ec2.tf
-│   │   ├── s3.tf
-│   │   ├── dynamodb.tf
-│   │   ├── output.tf
-│   │   └── variables.tf
-│   └── prod/
-│       ├── ec2.tf
-│       ├── s3.tf
-│       ├── dynamodb.tf
-│       ├── output.tf
-│       └── variables.tf
-├── providers.tf
-└── terraform.tfstate      # Terraform state file
+### Review the Execution Plan:
+```bash
+terraform plan
 ```
 
----
+### Apply the Changes to provision resources:
+```bash
+terraform apply
+```
 
-## **6. Clean Up the Infrastructure**
+### Confirm the Action when prompted (or use -auto-approve to skip the prompt):
+```bash
+terraform apply -auto-approve
+```
+
+Terraform will create the resources (EC2 instances, S3 buckets, and DynamoDB tables).
+
+## 5. Clean Up the Infrastructure
 
 When you're done, you can destroy the infrastructure to avoid incurring costs.
 
-Navigate to the environment folder (`dev`, `staging`, `prod`), and run:
-
+### Navigate to the project directory and run:
 ```bash
 terraform destroy
 ```
+If not clear  : https://github.com/LondheShubham153/terraform-ansible-multi-env 
 
----
 
-### **Conclusion**
 
-In this approach, you've used **Terraform** to provision AWS resources across multiple environments (dev, staging, and production). Terraform is responsible for creating and managing your EC2 instances, S3 buckets, and DynamoDB tables, but no configuration management tools like Ansible were used in this process.
-
-Let me know if you need further assistance with any step!
