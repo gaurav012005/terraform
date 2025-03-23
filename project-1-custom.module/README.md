@@ -12,6 +12,10 @@ The project involves:
 
 3.Creating dynamic inventories
 
+Diagram :
+
+![Project-design (1)](https://github.com/user-attachments/assets/236c4c9f-9b26-4b37-a5d8-9e68eca93d31)
+
 
 Automating infrastructure management
 ---
